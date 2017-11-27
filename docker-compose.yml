@@ -1,0 +1,140 @@
+version: "3.3"
+services:
+  elasticsearch:
+    image: elasticsearch
+    ports:
+    - 9200:9200
+    - 9300:9300
+  kibana:
+    image: kibana
+    ports:
+    - 5601:5601
+    links:
+    - elasticsearch
+    depends_on:
+    - elasticsearch
+  logstash:
+    image: logstash
+    ports:
+    - 5000:5000
+    links:
+    - elasticsearch
+    volumes:
+    - ./logstash/config:/config-dir
+    command: logstash -f /config-dir/logstash.conf
+    depends_on:
+    - elasticsearch
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - 5672:5672
+      - 15672:15672
+  config:
+    build: config-service
+    depends_on:
+      - rabbitmq
+    command:
+      sh -c 'chmod -R 777 /tmp; while ! /tmp/wait-for-it.sh rabbitmq:15672 -t 30; do echo "waiting for RabbitMQ Server to start..."; sleep 1; done; java -jar -Xmx200m -Dserver.port=8888 -Dspring.profiles.active=development /app/config-service.jar'
+    volumes:
+      - ./wait-for-it.sh:/tmp/wait-for-it.sh
+    ports:
+      - 8888:8888
+  discovery:
+    build: discovery-service
+    depends_on:
+      - config
+    command:
+      sh -c 'chmod -R 777 /tmp; while ! /tmp/wait-for-it.sh config:8888 -t 30; do echo "waiting for Config Server to start..."; sleep 1; done; java -jar -Xmx200m -Dspring.profiles.active=development -Dserver.port=8761 /app/discovery-service.jar'
+    volumes:
+      - ./wait-for-it.sh:/tmp/wait-for-it.sh
+    ports:
+      - 8761:8761
+  hystrix-dashboard:
+      build: hystrix-dashboard
+      depends_on:
+        - config
+        - discovery
+      command:
+        sh -c 'chmod -R 777 /tmp; while ! /tmp/wait-for-it.sh discovery:8761 -t 30; do echo "waiting for Discovery Server to start..."; sleep 1; done; java -jar -Xmx200m -Dspring.profiles.active=development -Dserver.port=7979 -Dservice.instance.name=hystrix-dashboard /app/hystrix-dashboard.jar'
+      volumes:
+        - ./wait-for-it.sh:/tmp/wait-for-it.sh
+      ports:
+        - 7979:7979
+  turbine:
+      build: turbine-service
+      depends_on:
+        - config
+        - discovery
+      command:
+        sh -c 'chmod -R 777 /tmp; while ! /tmp/wait-for-it.sh discovery:8761 -t 30; do echo "waiting for Discovery Server to start..."; sleep 1; done; java -jar -Xmx200m -Dspring.profiles.active=development -Dserver.port=7878 -Dservice.instance.name=turbine /app/turbine-service.jar'
+      volumes:
+        - ./wait-for-it.sh:/tmp/wait-for-it.sh
+      ports:
+        - 7878:7878
+  zipkin:
+    build: zipkin-service
+    depends_on:
+      - config
+      - discovery
+    command:
+      sh -c 'chmod -R 777 /tmp; while ! /tmp/wait-for-it.sh discovery:8761 -t 30; do echo "waiting for Discovery Server to start..."; sleep 1; done; java -jar -Xmx200m -Dspring.profiles.active=development -Dserver.port=9411 -Dservice.instance.name=zipkin /app/zipkin-service.jar'
+    volumes:
+      - ./wait-for-it.sh:/tmp/wait-for-it.sh
+    ports:
+      - 9411:9411
+  gateway_1:
+      build: gateway-service
+      depends_on:
+        - config
+        - discovery
+      command:
+        sh -c 'chmod -R 777 /tmp; while ! /tmp/wait-for-it.sh zipkin:9411 -t 30; do echo "waiting for zipkin Server to start..."; sleep 1; done; java -jar -Xmx200m -Dspring.profiles.active=development -Dserver.port=8080 -Dservice.instance.name=client /app/gateway-service.jar'
+      volumes:
+        - ./wait-for-it.sh:/tmp/wait-for-it.sh
+      ports:
+        - 8080:8080
+  gateway_2:
+      build: gateway-service
+      depends_on:
+        - config
+        - discovery
+      command:
+        sh -c 'chmod -R 777 /tmp; while ! /tmp/wait-for-it.sh gateway_1:8080 -t 30; do echo "waiting for Gateway1 Server to start..."; sleep 1; done; java -jar -Xmx200m -Dspring.profiles.active=development -Dserver.port=8090 -Dservice.instance.name=client /app/gateway-service.jar'
+      volumes:
+        - ./wait-for-it.sh:/tmp/wait-for-it.sh
+      ports:
+        - 8090:8090
+
+  product_1:
+      build: product-service
+      depends_on:
+        - config
+        - discovery
+      command:
+        sh -c 'chmod -R 777 /tmp; while ! /tmp/wait-for-it.sh gateway_2:8090 -t 30; do echo "waiting for Gateway_2 Server to start..."; sleep 1; done; java -jar -Xmx200m -Dspring.profiles.active=development -Dserver.port=8081 -Dservice.instance.name=product_1 /app/product-service.jar'
+      volumes:
+        - ./wait-for-it.sh:/tmp/wait-for-it.sh
+      ports:
+        - 8081:8081
+  product_2:
+      build: product-service
+      depends_on:
+        - config
+        - discovery
+      command:
+        sh -c 'chmod -R 777 /tmp; while ! /tmp/wait-for-it.sh zipkin:9411 -t 30; do echo "waiting for Zipkin Server to start..."; sleep 1; done; java -jar -Xmx200m -Dspring.profiles.active=development -Dserver.port=8082 -Dservice.instance.name=product_2 /app/product-service.jar'
+      volumes:
+        - ./wait-for-it.sh:/tmp/wait-for-it.sh
+      ports:
+        - 8082:8082
+  client:
+      build: client-service
+      depends_on:
+        - config
+        - discovery
+      command:
+        sh -c 'chmod -R 777 /tmp; while ! /tmp/wait-for-it.sh zipkin:9411 -t 30; do echo "waiting for Zipkin Server to start..."; sleep 1; done; java -jar -Xmx200m -Dspring.profiles.active=development -Dserver.port=9091 -Dservice.instance.name=client /app/client-service.jar'
+      volumes:
+        - ./wait-for-it.sh:/tmp/wait-for-it.sh
+      ports:
+        - 9091:9091

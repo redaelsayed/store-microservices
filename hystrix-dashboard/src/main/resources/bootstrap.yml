@@ -1,0 +1,19 @@
+spring:
+  application:
+    name:
+      hystrix-dashboard
+  cloud:
+    config:
+      uri: http://config:8888
+  rabbitmq:
+    host: rabbitmq
+    port: 5672
+    username: guest
+    password: guest
+eureka:
+  client:
+    service-url:
+      defaultZone: http://discovery:8761/eureka
+management:
+  security:
+    enabled: false
