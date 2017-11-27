@@ -1,0 +1,19 @@
+spring:
+  application:
+    name:
+      discovery
+  cloud:
+    config:
+      uri: http://config:8888
+  rabbitmq:
+    host: rabbitmq
+    port: 5672
+    username: guest
+    password: guest
+eureka:
+  client:
+    register-with-eureka: false
+    fetch-registry: false
+management:
+  security:
+    enabled: false

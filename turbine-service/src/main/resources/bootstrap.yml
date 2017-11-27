@@ -1,0 +1,29 @@
+spring:
+  application:
+    name:
+      turbine
+  cloud:
+    config:
+      uri: http://config:8888
+  rabbitmq:
+    host: rabbitmq
+    port: 5672
+    username: guest
+    password: guest
+eureka:
+  client:
+    service-url:
+      defaultZone: http://discovery:8761/eureka
+management:
+  security:
+    enabled: false
+# Turbine config for clustering
+#turbine:
+#  appConfig: client,gateway
+#  aggregator:
+#    clusterConfig: CLIENT,GATEWAY
+
+# Turbine config all in one
+turbine:
+  clusterNameExpression: new String('default')
+  appConfig: client,gateway

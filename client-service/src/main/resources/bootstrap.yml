@@ -1,0 +1,26 @@
+spring:
+  application:
+    name:
+      client
+  cloud:
+    config:
+      uri: http://config:8888
+  rabbitmq:
+    host: rabbitmq
+    port: 5672
+    username: guest
+    password: guest
+  zipkin:
+    baseUrl: http://zipkin:9411
+eureka:
+  client:
+    service-url:
+      defaultZone: http://discovery:8761/eureka
+gateway:
+  ribbon:
+    eureka:
+      enabled: true
+    ServerListRefreshInterval: 15000
+management:
+  security:
+    enabled: false
