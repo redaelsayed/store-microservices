@@ -1,0 +1,19 @@
+FROM mohammedalics/store-parent as store_parent
+
+MAINTAINER Mohammed Ali <mohammed.ali.cs@gmail.com>
+
+FROM maven:3.3-jdk-8 as build_stage
+
+ADD . /usr/src/mymaven
+
+COPY --from=store_parent /pom.xml /usr/src
+
+WORKDIR /usr/src/mymaven
+
+RUN mvn clean install
+
+FROM java:8-jre
+
+COPY --from=build_stage /usr/src/mymaven/target/hystrix-dashboard.jar /app/hystrix-dashboard.jar
+
+EXPOSE 7979

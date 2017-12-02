@@ -27,3 +27,5 @@ management:
 turbine:
   clusterNameExpression: new String('default')
   appConfig: client,gateway
+server:
+  port: 8080
